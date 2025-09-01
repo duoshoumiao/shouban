@@ -196,7 +196,7 @@ def get_at_qq_from_event(event: CQEvent) -> Optional[str]:
     return None
 
 # ------------------------------ 命令处理 ------------------------------
-@sv.on_prefix(("手办化添加key"))
+@sv.on_prefix(("添加key"))
 async def cmd_add_key(bot, event: CQEvent):
     if not priv.check_priv(event, priv.ADMIN):
         await bot.send(event, "❌ 权限不足，仅管理员可执行此操作")
@@ -232,7 +232,7 @@ async def cmd_add_key(bot, event: CQEvent):
         result_msg.append(f"- 跳过重复密钥：{', '.join(duplicate_keys)}")
     await bot.send(event, "\n".join(result_msg))
 
-@sv.on_fullmatch(("手办化key列表"))
+@sv.on_fullmatch(("key列表"))
 async def cmd_show_keys(bot, event: CQEvent):
     if not priv.check_priv(event, priv.ADMIN):
         await bot.send(event, "❌ 权限不足，仅管理员可执行此操作")
@@ -276,7 +276,7 @@ async def handle_figure_conversion(bot, event: CQEvent):
         image_b64 = await fetch_image_as_b64(image_url)
         
         # 4. 调用API生成图片
-        await bot.send(event, f"🎨 正在生成{preset}效果...")
+        await bot.send(event, f"🎨 正在生成效果图...")
         prompt, prompt_label = select_prompt(preset)
         payload = build_payload(
             model=CONFIG["model"],
@@ -305,7 +305,7 @@ async def handle_figure_conversion(bot, event: CQEvent):
             return
         
         # 使用兼容的消息构建方式
-        await bot.send(event, Message(f"✨ {prompt_label}生成成功！\n{MessageSegment.image(result_url)}"))
+        await bot.send(event, Message(f"✨生成成功！\n{MessageSegment.image(result_url)}"))
     
     except Exception as e:
         # 详细错误提示，方便排查问题
@@ -313,3 +313,48 @@ async def handle_figure_conversion(bot, event: CQEvent):
         # 添加日志记录
         import logging
         logging.error(f"手办化处理失败: {str(e)}", exc_info=True)
+
+@sv.on_prefix(("删除key"))
+async def cmd_remove_key(bot, event: CQEvent):
+    if not priv.check_priv(event, priv.ADMIN):
+        await bot.send(event, "❌ 权限不足，仅管理员可执行此操作")
+        return
+    msg_content = str(event.message).strip()
+    key_content = msg_content.replace("手办化删除key", "", 1).strip()
+    if not key_content:
+        await bot.send(event, "❌ 请输入要删除的API密钥前缀或序号！示例：\n手办化删除key 1\n手办化删除key sk-or-v1-xxxx")
+        return
+    
+    cfg = load_keys_config()
+    keys = cfg.get("keys", [])
+    if not keys:
+        await bot.send(event, "⚠️ 尚未配置任何API密钥")
+        return
+    
+    # 尝试按序号删除（1-based）
+    removed = False
+    if key_content.isdigit():
+        idx = int(key_content) - 1
+        if 0 <= idx < len(keys):
+            removed_key = keys.pop(idx)
+            removed = True
+    else:
+        # 尝试按前缀匹配删除
+        to_remove = [k for k in keys if k.startswith(key_content)]
+        if to_remove:
+            for k in to_remove:
+                keys.remove(k)
+            removed = True
+    
+    if not removed:
+        await bot.send(event, "❌ 未找到匹配的密钥，请检查输入")
+        return
+    
+    # 保存配置并调整当前索引
+    if cfg["current"] >= len(keys) and keys:
+        cfg["current"] = 0
+    save_keys_config(cfg)
+    
+    # 反馈结果
+    masked_keys = [k[:12] + "***" for k in to_remove] if not key_content.isdigit() else [removed_key[:12] + "***"]
+    await bot.send(event, f"✅ 成功删除密钥：\n" + "\n".join(masked_keys))
