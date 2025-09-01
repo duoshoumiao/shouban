@@ -48,7 +48,7 @@ sv = Service(
     use_priv=priv.NORMAL,
     manage_priv=priv.ADMIN,
     visible=True,
-    enable_on_default=True,
+    enable_on_default=False,
     help_="""
 使用说明：
 1. 发送命令+图片：发送"手办化1"并附带图片
@@ -147,12 +147,14 @@ async def fetch_image_as_b64(url: str) -> str:
     if os.path.exists(url):
         with open(url, "rb") as f:
             return base64.b64encode(f.read()).decode("utf-8")
-    # 处理网络URL（适配代理）
-    proxies = None
+     # 处理网络URL（适配代理）
+    proxy = None
     if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
-        proxies = {"http://": CONFIG["proxy_url"], "https://": CONFIG["proxy_url"]}
+        proxy = CONFIG["proxy_url"]  # 直接使用单个代理URL而非字典
+    
     try:
-        async with httpx.AsyncClient(timeout=30.0, proxies=proxies) as client:
+        # 使用 proxy 参数而非 proxies
+        async with httpx.AsyncClient(timeout=30.0, proxy=proxy) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return base64.b64encode(resp.content).decode("utf-8")
@@ -287,11 +289,11 @@ async def handle_figure_conversion(bot, event: CQEvent):
             "Content-Type": "application/json"
         }
         
-        proxies = None
+        proxy = None
         if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
-            proxies = {"http://": CONFIG["proxy_url"], "https://": CONFIG["proxy_url"]}
-        
-        async with httpx.AsyncClient(proxies=proxies, timeout=60.0) as client:
+            proxy = CONFIG["proxy_url"]  # 直接使用单个代理URL
+    
+        async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
             resp = await client.post(API_URL, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
