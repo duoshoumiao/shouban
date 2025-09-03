@@ -164,7 +164,7 @@ async def fetch_image_as_b64(url: str) -> str:
         proxy = CONFIG["proxy_url"]
     
     try:
-        async with httpx.AsyncClient(timeout=30.0, proxy=proxy) as client:
+        async with httpx.AsyncClient(timeout=30.0, proxies=proxy) as client:
             resp = await client.get(url)
             resp.raise_for_status()
             return base64.b64encode(resp.content).decode("utf-8")
@@ -350,7 +350,7 @@ async def handle_figure_conversion(bot, event: CQEvent):
         if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
             proxy = CONFIG["proxy_url"]
     
-        async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
+        async with httpx.AsyncClient(proxies=proxy, timeout=60.0) as client:
             resp = await client.post(API_URL, json=payload, headers=headers)
             resp.raise_for_status()  # 触发HTTP错误异常
             data = resp.json()
