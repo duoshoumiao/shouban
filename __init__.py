@@ -24,7 +24,7 @@ DEFAULT_PROMPT2 = "Use the nano-banana model to create a 1/7 scale commercialize
 DEFAULT_PROMPT3 = "Your primary mission is to accurately convert the subject from the user's photo into a photorealistic, masterpiece quality, 1/7 scale PVC figurine, presented in its commercial packaging.\n\n**Crucial First Step: Analyze the image to identify the subject's key attributes (e.g., human male, human female, animal, specific creature) and defining features (hair style, clothing, expression). The generated figurine must strictly adhere to these identified attributes.** This is a mandatory instruction to avoid generating a generic female figure.\n\n**Top Priority - Character Likeness:** The figurine's face MUST maintain a strong likeness to the original character. Your task is to translate the 2D facial features into a 3D sculpt, preserving the identity, expression, and core characteristics. If the source is blurry, interpret the features to create a sharp, well-defined version that is clearly recognizable as the same character.\n\n**Scene Details:**\n1. **Figurine:** The figure version of the photo I gave you, with a clear representation of PVC material, placed on a round plastic base.\n2. **Packaging:** Behind the figure, there should be a partially transparent plastic and paper box, with the character from the photo printed on it.\n3. **Environment:** The entire scene should be in an indoor setting with good lighting."
 DEFAULT_PROMPT4 = "基于游戏截图人物的逼真 PVC 人偶，高度细致的纹理PVC 材质，光泽细腻，漆面光滑，放置在室内木质电脑桌上（桌上摆放着一些精致的桌面物品，例如人偶盒/鼠标），在柔和的室内灯光（台灯和自然光混合）的照射下，阴影和高光效果逼真，微距摄影风格，高分辨率，人物清晰对焦，景深浅（桌面背景略微模糊但清晰可见）。无风格化，色彩和设计忠实于参考，1:1 比例,返回图片给我！！！"
 DEFAULT_PROMPT_Q = "((chibi style)), ((super-deformed)), ((head-to-body ratio 1:2)), ((huge head, tiny body)), ((smooth rounded limbs)), ((soft balloon-like hands and feet)), ((plump cheeks)), ((childlike big eyes)), ((simplified facial features)), ((smooth matte skin, no pores)), ((soft pastel color palette)), ((gentle ambient lighting, natural shadows)), ((same facial expression, same pose, same background scene)), ((seamless integration with original environment, correct perspective and scale)), ((no outline or thin soft outline)), ((high resolution, sharp focus, 8k, ultra-detailed)), avoid: realistic proportions, long limbs, sharp edges, harsh lighting, wrinkles, blemishes, thick black outlines, low resolution, blurry, extra limbs, distorted face"
-DEFAULT_PROMPT5 = "一幅超写实、电影感的插画，描绘了图中人物动态地撞穿一张“考古探险”集换卡牌的边框。她正处于跳跃中或用绳索摆荡，可能正在使用双枪射击，枪口的火焰帮助将卡牌古老的石雕边框震碎，在破口周围制造出可见的维度破裂效果，如能量裂纹和空间扭曲，使灰尘和碎片四散飞溅。她的身体充满活力地向前冲出，带有明显的运动深度，突破了卡牌的平面，卡牌内部（背景）描绘着茂密的丛林遗迹或布满陷阱的古墓内部。卡牌的碎屑与 crumbling 的石头、飞舞的藤蔓、古钱币碎片和用过的弹壳混合在一起。“考古探险”的标题和不知是谁的名字（带有一个风格化的文物图标）在卡牌剩余的、布满裂纹和风化痕迹的部分上可见。充满冒险感的、动态的灯光突出了她的运动能力和危险的环境。"
+DEFAULT_PROMPT5 = "一幅超写实、电影感的插画，描绘了图中人物动态地撞穿一张“考古探险”集换卡牌的边框。她正处于跳跃中或用绳索摆荡，枪口的火焰帮助将卡牌古老的石雕边框震碎，在破口周围制造出可见的维度破裂效果，如能量裂纹和空间扭曲，使灰尘和碎片四散飞溅。她的身体充满活力地向前冲出，带有明显的运动深度，突破了卡牌的平面，卡牌内部（背景）描绘着茂密的丛林遗迹或布满陷阱的古墓内部。卡牌的碎屑与 crumbling 的石头、飞舞的藤蔓、古钱币碎片混合在一起。“考古探险”的标题和不知是谁的名字（带有一个风格化的文物图标）在卡牌剩余的、布满裂纹和风化痕迹的部分上可见。充满冒险感的、动态的灯光突出了她的运动能力和危险的环境。"
 DEFAULT_PROMPT6 = "A 3D chibi-style version of the person in the photo is stepping through a glowing portal, reaching out and holding the viewer’s hand. As the character pulls the viewer forward, they turn back with a dynamic glance, inviting the viewer into their world.Behind the portal is the viewer’s real-life environment: a typical programmer’s study with a desk, monitor, and laptop, rendered in realistic detail. Inside the portal lies the character’s 3D chibi world, inspired by the photo, with a cool blue color scheme that sharply contrasts with the real-world surroundings.The portal itself is a perfectly elliptical frame glowing with mysterious blue and purple light, positioned at the center of the image as a gateway between the two worlds.The scene is captured from a third-person perspective, clearly showing the viewer’s hand being pulled into the character’s world. Use a 2:3 aspect ratio."
 #DEFAULT_PROMPT5 = ""
 PROMPT_MAP: Dict[str, str] = {
@@ -37,15 +37,15 @@ PROMPT_MAP: Dict[str, str] = {
     "次元壁": DEFAULT_PROMPT6,      
 }
 
-# 增强命令正则，确保能匹配带图片的消息
+
 COMMAND_PATTERNS = [
-    re.compile(r"^手办化4(?:@(\d+))?"),
-    re.compile(r"^手办化3(?:@(\d+))?"),
-    re.compile(r"^手办化2(?:@(\d+))?"),
-    re.compile(r"^手办化(?:@(\d+))?"),
-    re.compile(r"^Q版化(?:@(\d+))?"),
-    re.compile(r"^破壁而出(?:@(\d+))?"),
-    re.compile(r"^次元壁(?:@(\d+))?"),
+    re.compile(r"手办化4(?:@(\d+))?"),
+    re.compile(r"手办化3(?:@(\d+))?"),
+    re.compile(r"手办化2(?:@(\d+))?"),
+    re.compile(r"手办化(?:@(\d+))?"),
+    re.compile(r"Q版化(?:@(\d+))?"),
+    re.compile(r"破壁而出(?:@(\d+))?"),
+    re.compile(r"次元壁(?:@(\d+))?"),
 ]
 
 # 初始化生成目录
@@ -62,12 +62,12 @@ sv = Service(
 使用说明：
 1. 发送命令+图片：发送"手办化1"并附带图片
 2. 指定QQ：发送"手办化1@QQ号"使用该用户头像
-3. 回复图片：回复含图片的消息并发送"手办化1"
 """.strip()
 )
 
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
+    "sk-or-v1-XXXXXXXXX", #输入key
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -312,36 +312,82 @@ async def cmd_show_keys(bot, event: CQEvent):
     masked_keys = [k[:12] + "***" for k in keys]
     await bot.send(event, f"已配置密钥（共{len(keys)}个）：\n" + "\n".join(masked_keys))
 
+# 在全局添加缓存字典，记录等待图片的用户状态
+waiting_for_image = {}  # key: user_id, value: preset
+
 @sv.on_message()  # 不指定类型，兼容旧版本
 async def handle_figure_conversion(bot, event: CQEvent):
     """处理手办化/Q版化命令的主函数，支持图片和@提及"""
-    # 提取消息文本和图片
+    global waiting_for_image
+    user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, target_qq = parse_command(msg_text)
     
-    # 不匹配命令则忽略
-    if not preset:
+    # 情况1：用户之前发送过指令，现在单独发送图片
+    if user_id in waiting_for_image and not preset:
+        # 提取缓存的指令
+        preset = waiting_for_image.pop(user_id)
+        # 从当前消息获取图片
+        image_url = get_image_from_event(event)
+        if not image_url:
+            await bot.send(event, "未检测到图片，请重新发送图片")
+            # 重新记录等待状态
+            waiting_for_image[user_id] = preset
+            return
+    # 情况2：用户发送了指令，但未附带图片
+    elif preset and not get_image_from_event(event) and not target_qq:
+        # 记录等待状态
+        waiting_for_image[user_id] = preset
+        await bot.send(event, "请发送需要处理的图片（可直接附带图片或回复含图片的消息）")
         return
-    
+    # 情况3：不匹配命令则忽略
+    elif not preset:
+        return
+
     try:
         # 1. 获取图片来源（优先级：消息中的图片 > 回复的图片 > 头像）
         image_url = get_image_from_event(event)
         
+        # 新增：详细日志，便于排查图片获取问题
+        sv.logger.info(f"处理命令[{preset}]，初始图片URL: {image_url if image_url else '无'}")
+
         # 2. 处理目标QQ（优先级：命令中的@ > 消息中的@ > 发送者）
         if not target_qq:
             target_qq = get_at_qq_from_event(event)
+            sv.logger.info(f"从消息中提取到@的QQ: {target_qq if target_qq else '无'}")
+        
+        # 3. 检查图片是否存在，无图片且无目标QQ时提示用户补充图片
+        if not image_url and not target_qq:
+            # 既没有图片也没有@目标QQ，提示用户发送图片
+            await bot.send(event, "请发送需要处理的图片（可直接附带图片的消息）")
+            return
+        
+        # 4. 如果没有图片但有目标QQ，使用目标QQ头像
+        if not image_url and target_qq:
+            image_url = build_avatar_url(target_qq)
+            sv.logger.info(f"使用目标QQ[{target_qq}]的头像作为图片源")
+        # 如果没有图片且没有目标QQ，使用发送者头像（前面已过滤此情况，这里作为冗余处理）
         if not image_url:
-            # 如果没有图片，使用QQ头像
-            if target_qq:
-                image_url = build_avatar_url(target_qq)
-            else:
-                image_url = build_avatar_url(str(event.user_id))
+            image_url = build_avatar_url(str(event.user_id))
+            sv.logger.info(f"使用发送者QQ[{event.user_id}]的头像作为图片源")
         
-        # 3. 处理图片
+        # 新增：验证图片URL有效性
+        if not image_url.startswith(('http://', 'https://', 'base64://', 'file://')):
+            raise RuntimeError(f"无效的图片URL格式: {image_url}")
+
+        # 5. 处理图片
         await bot.send(event, "⏳ 正在处理图片，请稍候...")
-        image_b64 = await fetch_image_as_b64(image_url)
+        try:
+            image_b64 = await fetch_image_as_b64(image_url)
+            # 新增：验证base64结果
+            if len(image_b64) < 100:  # 简单判断，有效图片base64通常较长
+                raise RuntimeError("图片转换失败，得到无效的base64数据")
+        except Exception as e:
+            # 图片获取/转换失败时的友好提示
+            await bot.send(event, f"❌ 图片处理失败：{str(e)}\n请重新发送图片或检查图片有效性")
+            return
         
-        # 4. 调用API生成图片
+        # 6. 调用API生成图片（后续逻辑不变）
         await bot.send(event, f"🎨 正在生成效果图...")
         prompt, prompt_label = select_prompt(preset)
         payload = build_payload(
@@ -364,7 +410,7 @@ async def handle_figure_conversion(bot, event: CQEvent):
             resp.raise_for_status()  # 触发HTTP错误异常
             data = resp.json()
         
-        # 5. 提取并发送结果
+        # 7. 提取并发送结果
         result_url = extract_image_url_from_response(data)
         if not result_url:
             await bot.send(event, "❌ 未能从API响应中提取图片")
@@ -373,6 +419,7 @@ async def handle_figure_conversion(bot, event: CQEvent):
         # 使用兼容的消息构建方式
         await bot.send(event, Message(f"✨生成成功！\n{MessageSegment.image(result_url)}"))
     
+    # 异常处理部分保持不变
     except httpx.HTTPError as e:
         # 处理HTTP错误
         status_code = e.response.status_code if e.response else None
