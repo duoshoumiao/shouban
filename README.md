@@ -8,7 +8,7 @@ https://openrouter.ai/settings/keys
 
 在代码65行添加你所有的key，每天自动切换
 
-指令：
+指令：（支持先发指令，再发图片）
 
 手办化1/2/3/4
 
@@ -18,6 +18,7 @@ Q版化
 
 次元壁    
 
+<img width="457" height="969" alt="image" src="https://github.com/user-attachments/assets/2a87d150-08ef-49b5-99dd-ce9d08b7e5ea" />
 
 <img width="474" height="1175" alt="image" src="https://github.com/user-attachments/assets/a3e12098-fb1e-4ee3-87d1-a94007c4c4d3" />
 
