@@ -22,6 +22,8 @@ Q版化
 
 绘画 + 提示词 +图片
 
+<img width="449" height="1004" alt="dc0b2863-b989-4641-b562-ded5a0626a44" src="https://github.com/user-attachments/assets/f691cf1f-9142-4dd5-be63-459af10b61a5" />
+
 <img width="473" height="1334" alt="image" src="https://github.com/user-attachments/assets/e074da43-4189-490a-b768-956f97cbd283" />
 
 <img width="451" height="699" alt="aab3009bb8d7da6e17a41e624b8da1ad" src="https://github.com/user-attachments/assets/537bad5e-927c-498d-a2cc-9e76744e198a" />
