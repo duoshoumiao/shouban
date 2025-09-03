@@ -24,7 +24,7 @@ DEFAULT_PROMPT2 = "Use the nano-banana model to create a 1/7 scale commercialize
 DEFAULT_PROMPT3 = "Your primary mission is to accurately convert the subject from the user's photo into a photorealistic, masterpiece quality, 1/7 scale PVC figurine, presented in its commercial packaging.\n\n**Crucial First Step: Analyze the image to identify the subject's key attributes (e.g., human male, human female, animal, specific creature) and defining features (hair style, clothing, expression). The generated figurine must strictly adhere to these identified attributes.** This is a mandatory instruction to avoid generating a generic female figure.\n\n**Top Priority - Character Likeness:** The figurine's face MUST maintain a strong likeness to the original character. Your task is to translate the 2D facial features into a 3D sculpt, preserving the identity, expression, and core characteristics. If the source is blurry, interpret the features to create a sharp, well-defined version that is clearly recognizable as the same character.\n\n**Scene Details:**\n1. **Figurine:** The figure version of the photo I gave you, with a clear representation of PVC material, placed on a round plastic base.\n2. **Packaging:** Behind the figure, there should be a partially transparent plastic and paper box, with the character from the photo printed on it.\n3. **Environment:** The entire scene should be in an indoor setting with good lighting."
 DEFAULT_PROMPT4 = "基于游戏截图人物的逼真 PVC 人偶，高度细致的纹理PVC 材质，光泽细腻，漆面光滑，放置在室内木质电脑桌上（桌上摆放着一些精致的桌面物品，例如人偶盒/鼠标），在柔和的室内灯光（台灯和自然光混合）的照射下，阴影和高光效果逼真，微距摄影风格，高分辨率，人物清晰对焦，景深浅（桌面背景略微模糊但清晰可见）。无风格化，色彩和设计忠实于参考，1:1 比例,返回图片给我！！！"
 DEFAULT_PROMPT_Q = "((chibi style)), ((super-deformed)), ((head-to-body ratio 1:2)), ((huge head, tiny body)), ((smooth rounded limbs)), ((soft balloon-like hands and feet)), ((plump cheeks)), ((childlike big eyes)), ((simplified facial features)), ((smooth matte skin, no pores)), ((soft pastel color palette)), ((gentle ambient lighting, natural shadows)), ((same facial expression, same pose, same background scene)), ((seamless integration with original environment, correct perspective and scale)), ((no outline or thin soft outline)), ((high resolution, sharp focus, 8k, ultra-detailed)), avoid: realistic proportions, long limbs, sharp edges, harsh lighting, wrinkles, blemishes, thick black outlines, low resolution, blurry, extra limbs, distorted face"
-DEFAULT_PROMPT5 = "一幅超写实、电影感的插画，描绘了图中人物动态地撞穿一张“考古探险”集换卡牌的边框。她正处于跳跃中或用绳索摆荡，枪口的火焰帮助将卡牌古老的石雕边框震碎，在破口周围制造出可见的维度破裂效果，如能量裂纹和空间扭曲，使灰尘和碎片四散飞溅。她的身体充满活力地向前冲出，带有明显的运动深度，突破了卡牌的平面，卡牌内部（背景）描绘着茂密的丛林遗迹或布满陷阱的古墓内部。卡牌的碎屑与 crumbling 的石头、飞舞的藤蔓、古钱币碎片混合在一起。“考古探险”的标题和不知是谁的名字（带有一个风格化的文物图标）在卡牌剩余的、布满裂纹和风化痕迹的部分上可见。充满冒险感的、动态的灯光突出了她的运动能力和危险的环境。"
+DEFAULT_PROMPT5 = "一幅超写实、电影感的插画，描绘了图中人物动态地撞穿一张“考古探险”集换卡牌的边框。正处于跳跃中或用绳索摆荡，枪口的火焰帮助将卡牌古老的石雕边框震碎，在破口周围制造出可见的维度破裂效果，如能量裂纹和空间扭曲，使灰尘和碎片四散飞溅。充满活力地向前冲出，带有明显的运动深度，突破了卡牌的平面，卡牌内部（背景）描绘着茂密的丛林遗迹或布满陷阱的古墓内部。卡牌的碎屑与 crumbling 的石头、飞舞的藤蔓、古钱币碎片混合在一起。“考古探险”的标题和不知是谁的名字（带有一个风格化的文物图标）在卡牌剩余的、布满裂纹和风化痕迹的部分上可见。充满冒险感的、动态的灯光突出了运动能力和危险的环境。"
 DEFAULT_PROMPT6 = "A 3D chibi-style version of the person in the photo is stepping through a glowing portal, reaching out and holding the viewer’s hand. As the character pulls the viewer forward, they turn back with a dynamic glance, inviting the viewer into their world.Behind the portal is the viewer’s real-life environment: a typical programmer’s study with a desk, monitor, and laptop, rendered in realistic detail. Inside the portal lies the character’s 3D chibi world, inspired by the photo, with a cool blue color scheme that sharply contrasts with the real-world surroundings.The portal itself is a perfectly elliptical frame glowing with mysterious blue and purple light, positioned at the center of the image as a gateway between the two worlds.The scene is captured from a third-person perspective, clearly showing the viewer’s hand being pulled into the character’s world. Use a 2:3 aspect ratio."
 DEFAULT_PROMPT_DOUBLE = "Create a dynamic battle scene featuring the two characters from the provided images. The scene should show them in a cooperative fighting stance, with visible synergy between their movements. Maintain the original appearance and key features of both characters while rendering them in a consistent art style. Add dramatic lighting and motion effects to enhance the action-packed atmosphere. Ensure both characters are equally prominent and clearly recognizable from their source images."
 PROMPT_MAP: Dict[str, str] = {
@@ -349,7 +349,7 @@ waiting_for_double_image = {}  # 双打指令: {user_id: first_image_url}
 # ------------------------------ 双打模式单独处理 ------------------------------
 @sv.on_message()
 async def handle_double_mode(bot, event: CQEvent):
-    """单独处理双打模式的消息"""
+    """单独处理双打模式的消息，支持@目标用户获取头像"""
     user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, _ = parse_command(msg_text)
@@ -362,18 +362,25 @@ async def handle_double_mode(bot, event: CQEvent):
     if user_id in waiting_for_double_image:
         first_image_url = waiting_for_double_image.pop(user_id)
         
-        # 获取第二张图片
+        # 优先从消息提取图片，其次提取@用户的头像
         second_image_url = get_image_from_event(event)
+        target_qq = get_at_qq_from_event(event)  # 新增：提取@的目标QQ
+        
+        # 如果没有直接图片但有@用户，使用该用户头像
+        if not second_image_url and target_qq:
+            second_image_url = build_avatar_url(target_qq)
+            await bot.send(event, f"已使用@用户{target_qq}的头像作为第二张图片")
+        
         if not second_image_url:
             # 重新保存第一张图，等待第二张
             waiting_for_double_image[user_id] = first_image_url
-            await bot.send(event, "未检测到第二张图片，请重新发送第二张图片")
+            await bot.send(event, "未检测到第二张图片，请重新发送第二张图片（可直接附带图片或@目标用户使用其头像）")
             return
         
         # 两张图片都已获取，开始处理
         await bot.send(event, "⏳ 已收到两张图片，正在处理双打模式...")
         try:
-            # 处理第一张图片（修复点：确保第一张图被正确处理）
+            # 处理第一张图片
             first_image_b64 = await fetch_image_as_b64(first_image_url)
             # 处理第二张图片
             second_image_b64 = await fetch_image_as_b64(second_image_url)
@@ -382,7 +389,7 @@ async def handle_double_mode(bot, event: CQEvent):
             prompt, prompt_label = select_prompt("双打")
             await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
             
-            # 构建双图请求体（使用专用函数）
+            # 构建双图请求体
             payload = build_double_payload(
                 model=CONFIG["model"],
                 prompt=prompt,
@@ -417,16 +424,24 @@ async def handle_double_mode(bot, event: CQEvent):
         return
     
     # 情况2：首次发送双打指令，处理第一张图
+    # 优先从消息提取图片，其次提取@用户的头像
     first_image_url = get_image_from_event(event)
+    target_qq = get_at_qq_from_event(event)  # 新增：提取@的目标QQ
+    
+    # 如果没有直接图片但有@用户，使用该用户头像
+    if not first_image_url and target_qq:
+        first_image_url = build_avatar_url(target_qq)
+        await bot.send(event, f"已使用@用户{target_qq}的头像作为第一张图片")
+    
     if not first_image_url:
         # 等待用户发送第一张图
         waiting_for_double_image[user_id] = None  # 用None标记等待第一张图
-        await bot.send(event, "请发送第一张需要处理的图片（直接附带图片即可）")
+        await bot.send(event, "请发送第一张需要处理的图片（可直接附带图片或@目标用户使用其头像）")
         return
     else:
         # 已收到第一张图，等待第二张
         waiting_for_double_image[user_id] = first_image_url
-        await bot.send(event, "已收到第一张图片，请发送 双打+第二张需要处理的图片")
+        await bot.send(event, "已收到第一张图片，请发送第二张需要处理的图片（可直接附带图片或@目标用户使用其头像）")
         return
 
 # ------------------------------ 其他指令处理 ------------------------------
