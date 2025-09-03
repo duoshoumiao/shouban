@@ -2,10 +2,13 @@ import os
 import re
 import json
 import base64
+import asyncio
+import logging
+from datetime import datetime, timedelta
 from typing import Optional, Tuple, Dict
 import httpx
-from hoshino import Service, priv
-from hoshino.typing import CQEvent, Message, MessageSegment  # 仅使用typing中的类型
+from hoshino import Service, priv, get_bot
+from hoshino.typing import CQEvent, Message, MessageSegment
 
 # 加载配置
 from .config import CONFIG
@@ -32,11 +35,11 @@ PROMPT_MAP: Dict[str, str] = {
 
 # 增强命令正则，确保能匹配带图片的消息
 COMMAND_PATTERNS = [
-    re.compile(r"手办化4(?:@(\d+))?"),
-    re.compile(r"手办化3(?:@(\d+))?"),
-    re.compile(r"手办化2(?:@(\d+))?"),
-    re.compile(r"手办化(?:@(\d+))?"),
-    re.compile(r"Q版化(?:@(\d+))?"),
+    re.compile(r"^手办化4(?:@(\d+))?"),
+    re.compile(r"^手办化3(?:@(\d+))?"),
+    re.compile(r"^手办化2(?:@(\d+))?"),
+    re.compile(r"^手办化(?:@(\d+))?"),
+    re.compile(r"^Q版化(?:@(\d+))?"),
 ]
 
 # 初始化生成目录
@@ -44,7 +47,7 @@ os.makedirs(GENERATED_DIR, exist_ok=True)
 
 # 服务注册（兼容旧版本方式）
 sv = Service(
-    name="手办化",
+    name="手办",
     use_priv=priv.NORMAL,
     manage_priv=priv.ADMIN,
     visible=True,
@@ -56,6 +59,14 @@ sv = Service(
 3. 回复图片：回复含图片的消息并发送"手办化1"
 """.strip()
 )
+
+# 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
+AUTO_ADD_KEYS = [
+    "sk-or-v1-XXXXXXX",  
+]
+
+# 全局变量用于标记定时任务是否已启动
+auto_add_task_started = False
 
 # ------------------------------ 工具函数 ------------------------------
 def load_keys_config() -> dict:
@@ -80,7 +91,7 @@ def get_next_api_key() -> str:
     cfg = load_keys_config()
     keys = cfg.get("keys", [])
     if not keys:
-        raise RuntimeError("未配置OpenRouter API密钥，请使用【手办化添加key】命令添加")
+        raise RuntimeError("看来次数用完（每日12点自动添加key），请使用【添加key】命令添加新key")
     idx = cfg.get("current", 0) % len(keys)
     cfg["current"] = (idx + 1) % len(keys)
     save_keys_config(cfg)
@@ -94,7 +105,7 @@ def parse_command(message_text: str) -> Tuple[str, Optional[str]]:
     """解析命令，返回（预设标签，目标QQ）"""
     message_text = (message_text or "").strip()
     for pattern in COMMAND_PATTERNS:
-        m = pattern.search(message_text)  # 使用search而非match，支持命令在消息中任意位置
+        m = pattern.search(message_text)
         if m:
             cmd = m.group(0)
             if "手办化4" in cmd:
@@ -150,10 +161,9 @@ async def fetch_image_as_b64(url: str) -> str:
      # 处理网络URL（适配代理）
     proxy = None
     if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
-        proxy = CONFIG["proxy_url"]  # 直接使用单个代理URL而非字典
+        proxy = CONFIG["proxy_url"]
     
     try:
-        # 使用 proxy 参数而非 proxies
         async with httpx.AsyncClient(timeout=30.0, proxy=proxy) as client:
             resp = await client.get(url)
             resp.raise_for_status()
@@ -195,6 +205,54 @@ def get_at_qq_from_event(event: CQEvent) -> Optional[str]:
             return seg.data.get("qq")
     return None
 
+# ------------------------------ 定时任务 - 每日12点自动添加密钥 ------------------------------
+async def auto_add_keys_daily():
+    """每天12点自动添加指定key的定时任务"""
+    global auto_add_task_started
+    auto_add_task_started = True
+    sv.logger.info("每日自动添加密钥任务已启动")
+    
+    while True:
+        # 计算距离下次12点的时间
+        now = datetime.now()
+        target = now.replace(hour=12, minute=0, second=0, microsecond=0)
+        if now > target:
+            target += timedelta(days=1)
+        delta = (target - now).total_seconds()
+        sv.logger.info(f"距离下次自动添加密钥还有 {delta:.1f} 秒")
+        await asyncio.sleep(delta)
+        
+        # 执行添加key操作
+        try:
+            existing_config = load_keys_config()
+            existing_key_set = set(existing_config.get("keys", []))
+            new_keys = []
+            
+            for key in AUTO_ADD_KEYS:
+                if key and key not in existing_key_set and key.startswith("sk-or-v1-"):
+                    existing_config.setdefault("keys", []).append(key)
+                    new_keys.append(key[:12] + "***")
+                    existing_key_set.add(key)
+            
+            if new_keys:
+                save_keys_config(existing_config)
+                sv.logger.info(f"每日自动添加密钥完成，新增{len(new_keys)}个密钥: {', '.join(new_keys)}")
+            else:
+                sv.logger.info("每日自动添加密钥检查：无新密钥需要添加")
+        except Exception as e:
+            sv.logger.error(f"每日自动添加密钥失败: {str(e)}", exc_info=True)
+
+# 启动定时任务的兼容方法（Hoshino v1）
+def start_auto_add_task():
+    """启动每日自动添加密钥任务（兼容Hoshino v1）"""
+    global auto_add_task_started
+    if not auto_add_task_started:
+        loop = asyncio.get_event_loop()
+        loop.create_task(auto_add_keys_daily())
+
+# 在插件加载时启动定时任务（Hoshino v1兼容方式）
+start_auto_add_task()
+
 # ------------------------------ 命令处理 ------------------------------
 @sv.on_prefix(("添加key"))
 async def cmd_add_key(bot, event: CQEvent):
@@ -202,9 +260,9 @@ async def cmd_add_key(bot, event: CQEvent):
         await bot.send(event, "❌ 权限不足，仅管理员可执行此操作")
         return
     msg_content = str(event.message).strip()
-    key_content = msg_content.replace("手办化添加key", "", 1).strip()
+    key_content = msg_content.replace("添加key", "", 1).strip()
     if not key_content:
-        await bot.send(event, "❌ 请输入API密钥！示例：\n手办化添加key sk-or-v1-xxxxxxxxxxxxxxxx")
+        await bot.send(event, "❌ 请输入API密钥！示例：\n添加key sk-or-v1-xxxxxxxxxxxxxxxx")
         return
     # 分割多个密钥
     key_list = [k.strip() for k in re.split(r"[\s,;，；]", key_content) if k.strip()]
@@ -245,7 +303,6 @@ async def cmd_show_keys(bot, event: CQEvent):
     masked_keys = [k[:12] + "***" for k in keys]
     await bot.send(event, f"已配置密钥（共{len(keys)}个）：\n" + "\n".join(masked_keys))
 
-# 核心命令处理函数（兼容旧版本）
 @sv.on_message()  # 不指定类型，兼容旧版本
 async def handle_figure_conversion(bot, event: CQEvent):
     """处理手办化/Q版化命令的主函数，支持图片和@提及"""
@@ -291,11 +348,11 @@ async def handle_figure_conversion(bot, event: CQEvent):
         
         proxy = None
         if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
-            proxy = CONFIG["proxy_url"]  # 直接使用单个代理URL
+            proxy = CONFIG["proxy_url"]
     
         async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
             resp = await client.post(API_URL, json=payload, headers=headers)
-            resp.raise_for_status()
+            resp.raise_for_status()  # 触发HTTP错误异常
             data = resp.json()
         
         # 5. 提取并发送结果
@@ -307,12 +364,34 @@ async def handle_figure_conversion(bot, event: CQEvent):
         # 使用兼容的消息构建方式
         await bot.send(event, Message(f"✨生成成功！\n{MessageSegment.image(result_url)}"))
     
+    except httpx.HTTPError as e:
+        # 处理HTTP错误
+        status_code = e.response.status_code if e.response else None
+        error_msg = f"❌ HTTP请求错误: {str(e)}"
+        await bot.send(event, error_msg)
+        
+        # 当错误为401（未授权）或429（请求过于频繁）时删除第一个key
+        if status_code in (401, 429):
+            cfg = load_keys_config()
+            keys = cfg.get("keys", [])
+            if len(keys) > 0:
+                removed_key = keys.pop(0)  # 删除第一个key
+                # 调整当前索引
+                if cfg["current"] >= len(keys) and keys:
+                    cfg["current"] = 0
+                save_keys_config(cfg)
+                
+                # 根据错误类型显示不同消息
+                error_type = "密钥无效或未授权" if status_code == 401 else "请求过于频繁"
+                await bot.send(event, f"🔑 检测到{error_type}（{status_code}错误），已自动移除第一个密钥：{removed_key[:12]}***")
+        
+        sv.logger.error(f"手办化处理HTTP错误: {str(e)}", exc_info=True)
+        
     except Exception as e:
-        # 详细错误提示，方便排查问题
-        await bot.send(event, f"❌ 处理失败：{str(e)}")
-        # 添加日志记录
-        import logging
-        logging.error(f"手办化处理失败: {str(e)}", exc_info=True)
+        # 处理其他非HTTP错误
+        error_msg = f"❌ 处理失败：{str(e)}"
+        await bot.send(event, error_msg)
+        sv.logger.error(f"手办化处理失败: {str(e)}", exc_info=True)
 
 @sv.on_prefix(("删除key"))
 async def cmd_remove_key(bot, event: CQEvent):
@@ -320,9 +399,9 @@ async def cmd_remove_key(bot, event: CQEvent):
         await bot.send(event, "❌ 权限不足，仅管理员可执行此操作")
         return
     msg_content = str(event.message).strip()
-    key_content = msg_content.replace("手办化删除key", "", 1).strip()
+    key_content = msg_content.replace("删除key", "", 1).strip()
     if not key_content:
-        await bot.send(event, "❌ 请输入要删除的API密钥前缀或序号！示例：\n手办化删除key 1\n手办化删除key sk-or-v1-xxxx")
+        await bot.send(event, "❌ 请输入要删除的API密钥前缀或序号！示例：\n删除key 1\n删除key sk-or-v1-xxxx")
         return
     
     cfg = load_keys_config()
