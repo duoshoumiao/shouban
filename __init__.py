@@ -35,7 +35,8 @@ PROMPT_MAP: Dict[str, str] = {
     "Q版化": DEFAULT_PROMPT_Q,
     "破壁而出": DEFAULT_PROMPT5,  
     "次元壁": DEFAULT_PROMPT6,  
-    "双打": DEFAULT_PROMPT_DOUBLE,    
+    "双打": DEFAULT_PROMPT_DOUBLE, 
+    "绘画": "",    
 }
 
 COMMAND_PATTERNS = [
@@ -47,8 +48,8 @@ COMMAND_PATTERNS = [
     re.compile(r"^(?:@(\d+) )?Q版化(?:@(\d+))?"),
     re.compile(r"^(?:@(\d+) )?破壁而出(?:@(\d+))?"),
     re.compile(r"^(?:@(\d+) )?次元壁(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?绘画(?:@(\d+))?"),
 ]
-
 # 初始化生成目录
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
@@ -66,10 +67,9 @@ sv = Service(
 3. 双打模式：发送"双打"并附带第一张图片，收到提示后发送第二张图片
 """.strip()
 )
-
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
-    "sk-or-v1-XXXXXX", 
+    "sk-or-v1-XXXXXXX",
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -130,6 +130,8 @@ def parse_command(message_text: str) -> Tuple[str, Optional[str]]:
                 preset = "手办化2"
             elif "Q版化" in cmd:
                 preset = "Q版化"
+            elif "绘画" in cmd:
+                preset = "绘画"
             elif "破壁而出" in cmd:
                 preset = "破壁而出"  
             elif "次元壁" in cmd:
@@ -523,7 +525,19 @@ async def handle_other_commands(bot, event: CQEvent):
         
         # 6. 调用API生成图片
         prompt, prompt_label = select_prompt(preset)
-        await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
+        # 处理绘画指令的自定义提示词
+        if preset == "绘画":
+            # 从消息中提取用户自定义提示词（去除指令部分）
+            cmd_pattern = re.compile(r"^(?:@\d+ )?绘画(?:@\d+)?", re.IGNORECASE)
+            user_prompt = cmd_pattern.sub("", msg_text).strip()
+            if not user_prompt:
+                await bot.send(event, "❌ 请在【绘画】指令后添加具体描述提示词")
+                return
+            prompt = user_prompt  # 使用用户输入的提示词
+            await bot.send(event, "🎨 正在根据您的提示词生成图像...")
+        else:
+            await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
+            await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
         payload = build_payload(
             model=CONFIG["model"],
             prompt=prompt,
