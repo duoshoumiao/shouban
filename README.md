@@ -18,7 +18,9 @@ Q版化
 
 次元壁    
 
-双打+图片
+双打+图片/@
+
+绘画 + 提示词 +图片
 
 <img width="473" height="1334" alt="image" src="https://github.com/user-attachments/assets/e074da43-4189-490a-b768-956f97cbd283" />
 
