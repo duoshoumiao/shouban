@@ -39,14 +39,14 @@ PROMPT_MAP: Dict[str, str] = {
 }
 
 COMMAND_PATTERNS = [
-    re.compile(r"^双打(?:@(\d+))?"),  
-    re.compile(r"^手办化4(?:@(\d+))?"),
-    re.compile(r"^手办化3(?:@(\d+))?"),
-    re.compile(r"^手办化2(?:@(\d+))?"),
-    re.compile(r"^手办化(?:@(\d+))?"),
-    re.compile(r"^Q版化(?:@(\d+))?"),
-    re.compile(r"^破壁而出(?:@(\d+))?"),
-    re.compile(r"^次元壁(?:@(\d+))?"),
+    re.compile(r"^双打(?:@(\d+))?$"),  
+    re.compile(r"^手办化4(?:@(\d+))?$"),
+    re.compile(r"^手办化3(?:@(\d+))?$"),
+    re.compile(r"^手办化2(?:@(\d+))?$"),
+    re.compile(r"^手办化(?:@(\d+))?$"),
+    re.compile(r"^Q版化(?:@(\d+))?$"),
+    re.compile(r"^破壁而出(?:@(\d+))?$"),
+    re.compile(r"^次元壁(?:@(\d+))?$"),
 ]
 
 # 初始化生成目录
