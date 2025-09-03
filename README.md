@@ -6,7 +6,7 @@ https://openrouter.ai/settings/keys
 
 指令 添加key +key
 
-在代码65行添加你所有的key，每天自动切换
+在代码70行添加你所有的key，每天自动切换
 
 指令：（支持先发指令，再发图片）
 
