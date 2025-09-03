@@ -39,14 +39,14 @@ PROMPT_MAP: Dict[str, str] = {
 }
 
 COMMAND_PATTERNS = [
-    re.compile(r"^双打(?:@(\d+))?$"),  
-    re.compile(r"^手办化4(?:@(\d+))?$"),
-    re.compile(r"^手办化3(?:@(\d+))?$"),
-    re.compile(r"^手办化2(?:@(\d+))?$"),
-    re.compile(r"^手办化(?:@(\d+))?$"),
-    re.compile(r"^Q版化(?:@(\d+))?$"),
-    re.compile(r"^破壁而出(?:@(\d+))?$"),
-    re.compile(r"^次元壁(?:@(\d+))?$"),
+    re.compile(r"^(?:@(\d+) )?双打(?:@(\d+))?"), 
+    re.compile(r"^(?:@(\d+) )?手办化4(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?手办化3(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?手办化2(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?手办化(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?Q版化(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?破壁而出(?:@(\d+))?"),
+    re.compile(r"^(?:@(\d+) )?次元壁(?:@(\d+))?"),
 ]
 
 # 初始化生成目录
@@ -61,7 +61,7 @@ sv = Service(
     enable_on_default=False,
     help_="""
 使用说明：
-1. 发送命令+图片：发送"手办化1"并附带图片，指令可以先发
+1. 发送命令+图片：发送"手办化1"并附带图片
 2. 指定QQ：发送"手办化1@QQ号"使用该用户头像
 3. 双打模式：发送"双打"并附带第一张图片，收到提示后发送第二张图片
 """.strip()
@@ -69,7 +69,7 @@ sv = Service(
 
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
-    "sk-or-v1-XXXXXXX",
+    "sk-or-v1-XXXXXX", 
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -114,6 +114,11 @@ def parse_command(message_text: str) -> Tuple[str, Optional[str]]:
     for pattern in COMMAND_PATTERNS:
         m = pattern.search(message_text)
         if m:
+            # 提取@的QQ号（可能在指令前或后）
+            qq1 = m.group(1)
+            qq2 = m.group(2)
+            target_qq = qq1 or qq2  # 优先取指令前的@
+            
             cmd = m.group(0)
             if "双打" in cmd:
                 preset = "双打"
@@ -131,8 +136,7 @@ def parse_command(message_text: str) -> Tuple[str, Optional[str]]:
                 preset = "次元壁"    
             else:
                 preset = "手办化1"
-            qq = m.group(1)
-            return preset, qq
+            return preset, target_qq
     return "", None
 
 def select_prompt(preset_label: str) -> Tuple[str, str]:
@@ -428,32 +432,35 @@ async def handle_double_mode(bot, event: CQEvent):
 # ------------------------------ 其他指令处理 ------------------------------
 @sv.on_message()
 async def handle_other_commands(bot, event: CQEvent):
-    """处理除双打之外的其他指令"""
+    """处理除双打之外的其他指令，支持@目标头像触发"""
     user_id = event.user_id
     msg_text = str(event.message).strip()
+    # 解析命令，支持@在指令前后的格式
     preset, target_qq = parse_command(msg_text)
     
-    # 忽略双打指令（已由专门函数处理）
+    # 调试日志：输出初始解析结果
+    sv.logger.debug(f"初始解析 - preset: {preset}, target_qq: {target_qq}, 原始消息: {msg_text}")
+    
+    # 忽略双打指令
     if preset == "双打":
         return
     
     # 情况1：用户之前发送过指令，现在单独发送图片
     if user_id in waiting_for_image and not preset:
-        # 提取缓存的指令
         preset = waiting_for_image.pop(user_id)
-        # 从当前消息获取图片
         image_url = get_image_from_event(event)
         if not image_url:
             await bot.send(event, "未检测到图片，请重新发送图片")
-            # 重新记录等待状态
             waiting_for_image[user_id] = preset
             return
-    # 情况2：用户发送了指令，但未附带图片
+    # 情况2：用户发送了指令，但未附带图片且未识别到目标
     elif preset and not get_image_from_event(event) and not target_qq:
-        # 记录等待状态
-        waiting_for_image[user_id] = preset
-        await bot.send(event, "请发送需要处理的图片（可直接附带图片）")
-        return
+        # 再次尝试提取@目标（双重保障）
+        target_qq = get_at_qq_from_event(event)
+        if not target_qq:  # 确认确实没有目标才进入等待状态
+            waiting_for_image[user_id] = preset
+            await bot.send(event, "请发送需要处理的图片（可直接附带图片）或@目标用户使用其头像")
+            return
     # 情况3：不匹配命令则忽略
     elif not preset:
         return
@@ -464,14 +471,17 @@ async def handle_other_commands(bot, event: CQEvent):
         image_url = get_image_from_event(event)
         sv.logger.info(f"处理命令[{preset}]，初始图片URL: {image_url if image_url else '无'}")
 
-        # 2. 处理目标QQ
+        # 2. 处理目标QQ（多重提取保障）
         if not target_qq:
             target_qq = get_at_qq_from_event(event)
             sv.logger.info(f"从消息中提取到@的QQ: {target_qq if target_qq else '无'}")
         
-        # 3. 检查图片是否存在
+        # 最终确认目标状态（增加调试日志）
+        sv.logger.debug(f"最终目标确认 - target_qq: {target_qq}, image_url存在: {bool(image_url)}")
+        
+        # 3. 检查图片/目标是否存在
         if not image_url and not target_qq:
-            await bot.send(event, "请发送需要处理的图片（可直接附带图片的消息）")
+            await bot.send(event, "请发送需要处理的图片（可直接附带图片的消息）或@目标用户")
             return
         
         # 4. 使用头像作为图片源（当无直接图片时）
@@ -548,6 +558,18 @@ async def handle_other_commands(bot, event: CQEvent):
         error_msg = f"❌ 处理失败：{str(e)}"
         await bot.send(event, error_msg)
         sv.logger.error(f"处理失败: {str(e)}", exc_info=True)
+
+
+# 同时确保get_at_qq_from_event函数能正确提取@的用户（如果之前实现有问题）
+def get_at_qq_from_event(event: CQEvent) -> Optional[str]:
+    """从事件中提取@的第一个用户QQ号"""
+    for segment in event.message:
+        if segment.type == "at" and segment.data.get("qq"):
+            # 排除@全体成员的情况
+            if segment.data["qq"] != "all":
+                return segment.data["qq"]
+    return None
+
 
 @sv.on_prefix(("删除key"))
 async def cmd_remove_key(bot, event: CQEvent):
