@@ -24,7 +24,7 @@ Q版化
 
 <img width="473" height="1334" alt="image" src="https://github.com/user-attachments/assets/e074da43-4189-490a-b768-956f97cbd283" />
 
-<img width="457" height="969" alt="image" src="https://github.com/user-attachments/assets/2a87d150-08ef-49b5-99dd-ce9d08b7e5ea" />
+<img width="451" height="699" alt="aab3009bb8d7da6e17a41e624b8da1ad" src="https://github.com/user-attachments/assets/537bad5e-927c-498d-a2cc-9e76744e198a" />
 
 <img width="474" height="1175" alt="image" src="https://github.com/user-attachments/assets/a3e12098-fb1e-4ee3-87d1-a94007c4c4d3" />
 
