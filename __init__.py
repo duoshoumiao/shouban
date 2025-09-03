@@ -26,7 +26,7 @@ DEFAULT_PROMPT4 = "基于游戏截图人物的逼真 PVC 人偶，高度细致�
 DEFAULT_PROMPT_Q = "((chibi style)), ((super-deformed)), ((head-to-body ratio 1:2)), ((huge head, tiny body)), ((smooth rounded limbs)), ((soft balloon-like hands and feet)), ((plump cheeks)), ((childlike big eyes)), ((simplified facial features)), ((smooth matte skin, no pores)), ((soft pastel color palette)), ((gentle ambient lighting, natural shadows)), ((same facial expression, same pose, same background scene)), ((seamless integration with original environment, correct perspective and scale)), ((no outline or thin soft outline)), ((high resolution, sharp focus, 8k, ultra-detailed)), avoid: realistic proportions, long limbs, sharp edges, harsh lighting, wrinkles, blemishes, thick black outlines, low resolution, blurry, extra limbs, distorted face"
 DEFAULT_PROMPT5 = "一幅超写实、电影感的插画，描绘了图中人物动态地撞穿一张“考古探险”集换卡牌的边框。她正处于跳跃中或用绳索摆荡，枪口的火焰帮助将卡牌古老的石雕边框震碎，在破口周围制造出可见的维度破裂效果，如能量裂纹和空间扭曲，使灰尘和碎片四散飞溅。她的身体充满活力地向前冲出，带有明显的运动深度，突破了卡牌的平面，卡牌内部（背景）描绘着茂密的丛林遗迹或布满陷阱的古墓内部。卡牌的碎屑与 crumbling 的石头、飞舞的藤蔓、古钱币碎片混合在一起。“考古探险”的标题和不知是谁的名字（带有一个风格化的文物图标）在卡牌剩余的、布满裂纹和风化痕迹的部分上可见。充满冒险感的、动态的灯光突出了她的运动能力和危险的环境。"
 DEFAULT_PROMPT6 = "A 3D chibi-style version of the person in the photo is stepping through a glowing portal, reaching out and holding the viewer’s hand. As the character pulls the viewer forward, they turn back with a dynamic glance, inviting the viewer into their world.Behind the portal is the viewer’s real-life environment: a typical programmer’s study with a desk, monitor, and laptop, rendered in realistic detail. Inside the portal lies the character’s 3D chibi world, inspired by the photo, with a cool blue color scheme that sharply contrasts with the real-world surroundings.The portal itself is a perfectly elliptical frame glowing with mysterious blue and purple light, positioned at the center of the image as a gateway between the two worlds.The scene is captured from a third-person perspective, clearly showing the viewer’s hand being pulled into the character’s world. Use a 2:3 aspect ratio."
-#DEFAULT_PROMPT5 = ""
+DEFAULT_PROMPT_DOUBLE = "Create a dynamic battle scene featuring the two characters from the provided images. The scene should show them in a cooperative fighting stance, with visible synergy between their movements. Maintain the original appearance and key features of both characters while rendering them in a consistent art style. Add dramatic lighting and motion effects to enhance the action-packed atmosphere. Ensure both characters are equally prominent and clearly recognizable from their source images."
 PROMPT_MAP: Dict[str, str] = {
     "手办化1": DEFAULT_PROMPT,
     "手办化2": DEFAULT_PROMPT2,
@@ -34,18 +34,19 @@ PROMPT_MAP: Dict[str, str] = {
     "手办化4": DEFAULT_PROMPT4,
     "Q版化": DEFAULT_PROMPT_Q,
     "破壁而出": DEFAULT_PROMPT5,  
-    "次元壁": DEFAULT_PROMPT6,      
+    "次元壁": DEFAULT_PROMPT6,  
+    "双打": DEFAULT_PROMPT_DOUBLE,    
 }
 
-
 COMMAND_PATTERNS = [
-    re.compile(r"手办化4(?:@(\d+))?"),
-    re.compile(r"手办化3(?:@(\d+))?"),
-    re.compile(r"手办化2(?:@(\d+))?"),
-    re.compile(r"手办化(?:@(\d+))?"),
-    re.compile(r"Q版化(?:@(\d+))?"),
-    re.compile(r"破壁而出(?:@(\d+))?"),
-    re.compile(r"次元壁(?:@(\d+))?"),
+    re.compile(r"^双打(?:@(\d+))?"),  
+    re.compile(r"^手办化4(?:@(\d+))?"),
+    re.compile(r"^手办化3(?:@(\d+))?"),
+    re.compile(r"^手办化2(?:@(\d+))?"),
+    re.compile(r"^手办化(?:@(\d+))?"),
+    re.compile(r"^Q版化(?:@(\d+))?"),
+    re.compile(r"^破壁而出(?:@(\d+))?"),
+    re.compile(r"^次元壁(?:@(\d+))?"),
 ]
 
 # 初始化生成目录
@@ -60,14 +61,15 @@ sv = Service(
     enable_on_default=False,
     help_="""
 使用说明：
-1. 发送命令+图片：发送"手办化1"并附带图片
+1. 发送命令+图片：发送"手办化1"并附带图片，指令可以先发
 2. 指定QQ：发送"手办化1@QQ号"使用该用户头像
+3. 双打模式：发送"双打"并附带第一张图片，收到提示后发送第二张图片
 """.strip()
 )
 
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
-    "sk-or-v1-XXXXXXXXX", #输入key
+    "sk-or-v1-XXXXXXX",
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -113,7 +115,9 @@ def parse_command(message_text: str) -> Tuple[str, Optional[str]]:
         m = pattern.search(message_text)
         if m:
             cmd = m.group(0)
-            if "手办化4" in cmd:
+            if "双打" in cmd:
+                preset = "双打"
+            elif "手办化4" in cmd:
                 preset = "手办化4"
             elif "手办化3" in cmd:
                 preset = "手办化3"
@@ -138,7 +142,7 @@ def select_prompt(preset_label: str) -> Tuple[str, str]:
     return PROMPT_MAP["手办化1"], "手办化1"
 
 def build_payload(model: str, prompt: str, image_b64: str, max_tokens: int) -> dict:
-    """构建API请求体"""
+    """构建单图API请求体"""
     return {
         "model": model,
         "messages": [
@@ -147,6 +151,24 @@ def build_payload(model: str, prompt: str, image_b64: str, max_tokens: int) -> d
                 "content": [
                     {"type": "text", "text": prompt},
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image_b64}"}},
+                ],
+            }
+        ],
+        "max_tokens": max_tokens,
+        "stream": False,
+    }
+
+def build_double_payload(model: str, prompt: str, image1_b64: str, image2_b64: str, max_tokens: int) -> dict:
+    """构建双图API请求体"""
+    return {
+        "model": model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image1_b64}"}},
+                    {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{image2_b64}"}},
                 ],
             }
         ],
@@ -314,14 +336,106 @@ async def cmd_show_keys(bot, event: CQEvent):
 
 # 在全局添加缓存字典，记录等待图片的用户状态
 waiting_for_image = {}  # key: user_id, value: preset
+waiting_for_second_image = {}  # key: user_id, value: (preset, first_image_url)
 
-@sv.on_message()  # 不指定类型，兼容旧版本
-async def handle_figure_conversion(bot, event: CQEvent):
-    """处理手办化/Q版化命令的主函数，支持图片和@提及"""
-    global waiting_for_image
+# 全局状态变量拆分，分别管理普通指令和双打指令的等待状态
+waiting_for_image = {}  # 普通指令: {user_id: preset}
+waiting_for_double_image = {}  # 双打指令: {user_id: first_image_url}
+
+# ------------------------------ 双打模式单独处理 ------------------------------
+@sv.on_message()
+async def handle_double_mode(bot, event: CQEvent):
+    """单独处理双打模式的消息"""
+    user_id = event.user_id
+    msg_text = str(event.message).strip()
+    preset, _ = parse_command(msg_text)
+    
+    # 只处理双打指令
+    if preset != "双打":
+        return
+    
+    # 情况1：用户已发送第一张图，现在处理第二张图
+    if user_id in waiting_for_double_image:
+        first_image_url = waiting_for_double_image.pop(user_id)
+        
+        # 获取第二张图片
+        second_image_url = get_image_from_event(event)
+        if not second_image_url:
+            # 重新保存第一张图，等待第二张
+            waiting_for_double_image[user_id] = first_image_url
+            await bot.send(event, "未检测到第二张图片，请重新发送第二张图片")
+            return
+        
+        # 两张图片都已获取，开始处理
+        await bot.send(event, "⏳ 已收到两张图片，正在处理双打模式...")
+        try:
+            # 处理第一张图片（修复点：确保第一张图被正确处理）
+            first_image_b64 = await fetch_image_as_b64(first_image_url)
+            # 处理第二张图片
+            second_image_b64 = await fetch_image_as_b64(second_image_url)
+            
+            # 获取提示词并显示正确状态
+            prompt, prompt_label = select_prompt("双打")
+            await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
+            
+            # 构建双图请求体（使用专用函数）
+            payload = build_double_payload(
+                model=CONFIG["model"],
+                prompt=prompt,
+                image1_b64=first_image_b64,
+                image2_b64=second_image_b64,
+                max_tokens=CONFIG["max_tokens"]
+            )
+            
+            # 发送API请求
+            headers = {
+                "Authorization": f"Bearer {get_next_api_key()}",
+                "Content-Type": "application/json"
+            }
+            
+            proxy = CONFIG["proxy_url"] if CONFIG["use_proxy"] else None
+            async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
+                resp = await client.post(API_URL, json=payload, headers=headers)
+                resp.raise_for_status()
+                data = resp.json()
+            
+            # 提取并发送结果
+            result_url = extract_image_url_from_response(data)
+            if result_url:
+                await bot.send(event, Message(f"✨ {prompt_label}生成成功！\n{MessageSegment.image(result_url)}"))
+            else:
+                await bot.send(event, "❌ 未能从API响应中提取图片")
+                
+        except Exception as e:
+            await bot.send(event, f"❌ 双打模式处理失败：{str(e)}")
+            # 出错时恢复状态，允许重新发送
+            waiting_for_double_image[user_id] = first_image_url
+        return
+    
+    # 情况2：首次发送双打指令，处理第一张图
+    first_image_url = get_image_from_event(event)
+    if not first_image_url:
+        # 等待用户发送第一张图
+        waiting_for_double_image[user_id] = None  # 用None标记等待第一张图
+        await bot.send(event, "请发送第一张需要处理的图片（直接附带图片即可）")
+        return
+    else:
+        # 已收到第一张图，等待第二张
+        waiting_for_double_image[user_id] = first_image_url
+        await bot.send(event, "已收到第一张图片，请发送 双打+第二张需要处理的图片")
+        return
+
+# ------------------------------ 其他指令处理 ------------------------------
+@sv.on_message()
+async def handle_other_commands(bot, event: CQEvent):
+    """处理除双打之外的其他指令"""
     user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, target_qq = parse_command(msg_text)
+    
+    # 忽略双打指令（已由专门函数处理）
+    if preset == "双打":
+        return
     
     # 情况1：用户之前发送过指令，现在单独发送图片
     if user_id in waiting_for_image and not preset:
@@ -338,40 +452,37 @@ async def handle_figure_conversion(bot, event: CQEvent):
     elif preset and not get_image_from_event(event) and not target_qq:
         # 记录等待状态
         waiting_for_image[user_id] = preset
-        await bot.send(event, "请发送需要处理的图片（可直接附带图片或回复含图片的消息）")
+        await bot.send(event, "请发送需要处理的图片（可直接附带图片）")
         return
     # 情况3：不匹配命令则忽略
     elif not preset:
         return
 
+    # 单图处理逻辑
     try:
-        # 1. 获取图片来源（优先级：消息中的图片 > 回复的图片 > 头像）
+        # 1. 获取图片来源
         image_url = get_image_from_event(event)
-        
-        # 新增：详细日志，便于排查图片获取问题
         sv.logger.info(f"处理命令[{preset}]，初始图片URL: {image_url if image_url else '无'}")
 
-        # 2. 处理目标QQ（优先级：命令中的@ > 消息中的@ > 发送者）
+        # 2. 处理目标QQ
         if not target_qq:
             target_qq = get_at_qq_from_event(event)
             sv.logger.info(f"从消息中提取到@的QQ: {target_qq if target_qq else '无'}")
         
-        # 3. 检查图片是否存在，无图片且无目标QQ时提示用户补充图片
+        # 3. 检查图片是否存在
         if not image_url and not target_qq:
-            # 既没有图片也没有@目标QQ，提示用户发送图片
             await bot.send(event, "请发送需要处理的图片（可直接附带图片的消息）")
             return
         
-        # 4. 如果没有图片但有目标QQ，使用目标QQ头像
+        # 4. 使用头像作为图片源（当无直接图片时）
         if not image_url and target_qq:
             image_url = build_avatar_url(target_qq)
             sv.logger.info(f"使用目标QQ[{target_qq}]的头像作为图片源")
-        # 如果没有图片且没有目标QQ，使用发送者头像（前面已过滤此情况，这里作为冗余处理）
         if not image_url:
             image_url = build_avatar_url(str(event.user_id))
             sv.logger.info(f"使用发送者QQ[{event.user_id}]的头像作为图片源")
         
-        # 新增：验证图片URL有效性
+        # 验证图片URL有效性
         if not image_url.startswith(('http://', 'https://', 'base64://', 'file://')):
             raise RuntimeError(f"无效的图片URL格式: {image_url}")
 
@@ -379,17 +490,15 @@ async def handle_figure_conversion(bot, event: CQEvent):
         await bot.send(event, "⏳ 正在处理图片，请稍候...")
         try:
             image_b64 = await fetch_image_as_b64(image_url)
-            # 新增：验证base64结果
-            if len(image_b64) < 100:  # 简单判断，有效图片base64通常较长
+            if len(image_b64) < 100:
                 raise RuntimeError("图片转换失败，得到无效的base64数据")
         except Exception as e:
-            # 图片获取/转换失败时的友好提示
             await bot.send(event, f"❌ 图片处理失败：{str(e)}\n请重新发送图片或检查图片有效性")
             return
         
-        # 6. 调用API生成图片（后续逻辑不变）
-        await bot.send(event, f"🎨 正在生成效果图...")
+        # 6. 调用API生成图片
         prompt, prompt_label = select_prompt(preset)
+        await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
         payload = build_payload(
             model=CONFIG["model"],
             prompt=prompt,
@@ -401,13 +510,10 @@ async def handle_figure_conversion(bot, event: CQEvent):
             "Content-Type": "application/json"
         }
         
-        proxy = None
-        if CONFIG["use_proxy"] and CONFIG["proxy_url"]:
-            proxy = CONFIG["proxy_url"]
-    
+        proxy = CONFIG["proxy_url"] if CONFIG["use_proxy"] else None
         async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
             resp = await client.post(API_URL, json=payload, headers=headers)
-            resp.raise_for_status()  # 触发HTTP错误异常
+            resp.raise_for_status()
             data = resp.json()
         
         # 7. 提取并发送结果
@@ -416,38 +522,32 @@ async def handle_figure_conversion(bot, event: CQEvent):
             await bot.send(event, "❌ 未能从API响应中提取图片")
             return
         
-        # 使用兼容的消息构建方式
-        await bot.send(event, Message(f"✨生成成功！\n{MessageSegment.image(result_url)}"))
+        await bot.send(event, Message(f"✨ {prompt_label}生成成功！\n{MessageSegment.image(result_url)}"))
     
-    # 异常处理部分保持不变
+    # 异常处理
     except httpx.HTTPError as e:
-        # 处理HTTP错误
         status_code = e.response.status_code if e.response else None
         error_msg = f"❌ HTTP请求错误: {str(e)}"
         await bot.send(event, error_msg)
         
-        # 当错误为401（未授权）或429（请求过于频繁）时删除第一个key
         if status_code in (401, 429):
             cfg = load_keys_config()
             keys = cfg.get("keys", [])
             if len(keys) > 0:
-                removed_key = keys.pop(0)  # 删除第一个key
-                # 调整当前索引
+                removed_key = keys.pop(0)
                 if cfg["current"] >= len(keys) and keys:
                     cfg["current"] = 0
                 save_keys_config(cfg)
                 
-                # 根据错误类型显示不同消息
                 error_type = "密钥无效或未授权" if status_code == 401 else "请求过于频繁"
                 await bot.send(event, f"🔑 检测到{error_type}（{status_code}错误），已自动移除第一个密钥：{removed_key[:12]}***")
         
-        sv.logger.error(f"手办化处理HTTP错误: {str(e)}", exc_info=True)
+        sv.logger.error(f"处理HTTP错误: {str(e)}", exc_info=True)
         
     except Exception as e:
-        # 处理其他非HTTP错误
         error_msg = f"❌ 处理失败：{str(e)}"
         await bot.send(event, error_msg)
-        sv.logger.error(f"手办化处理失败: {str(e)}", exc_info=True)
+        sv.logger.error(f"处理失败: {str(e)}", exc_info=True)
 
 @sv.on_prefix(("删除key"))
 async def cmd_remove_key(bot, event: CQEvent):
