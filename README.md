@@ -1,7 +1,10 @@
 # shouban
 
 https://openrouter.ai/settings/keys手动创建apikey
-填入openrouter_keys.json
+
+指令添加key +key
+
+在代码65行添加你所有的key，每天自动切换
 
 <img width="474" height="1175" alt="image" src="https://github.com/user-attachments/assets/a3e12098-fb1e-4ee3-87d1-a94007c4c4d3" />
 
