@@ -1,6 +1,8 @@
 # shouban
 
-https://openrouter.ai/settings/keys手动创建apikey
+https://openrouter.ai/settings/keys
+
+手动创建apikey
 
 指令添加key +key
 
