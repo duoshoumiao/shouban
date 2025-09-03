@@ -537,7 +537,6 @@ async def handle_other_commands(bot, event: CQEvent):
             await bot.send(event, "🎨 正在根据您的提示词生成图像...")
         else:
             await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
-            await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
         payload = build_payload(
             model=CONFIG["model"],
             prompt=prompt,
