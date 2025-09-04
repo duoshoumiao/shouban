@@ -74,7 +74,7 @@ sv = Service(
 
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
-    "sk-or-v1-XXXXX", 
+    "sk-or-v1-XXXX", 
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -356,7 +356,7 @@ waiting_for_double_image = {}  # 双打指令: {user_id: first_image_url}
 # ------------------------------ 双打模式单独处理 ------------------------------
 @sv.on_message()
 async def handle_double_mode(bot, event: CQEvent):
-    """单独处理双打模式的消息，支持@目标用户获取头像"""
+    """单独处理双打模式的消息，支持@目标用户获取头像"""    
     user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, _ = parse_command(msg_text)
@@ -459,15 +459,6 @@ async def handle_double_mode(bot, event: CQEvent):
 @sv.on_message()
 async def handle_other_commands(bot, event: CQEvent):
     """处理除双打之外的其他指令，支持@目标头像触发"""
-    # 新增：频率限制检查
-    group_id = event.group_id if event.group_id else None
-    if group_id:
-        now = datetime.now()
-        last_used = group_last_used.get(group_id)
-        if last_used and (now - last_used) < timedelta(seconds=FREQ_LIMIT_SECONDS):
-            remaining = (last_used + timedelta(seconds=FREQ_LIMIT_SECONDS) - now).seconds
-            await bot.send(event, f"⚠️ 每个群每分钟只能使用一次指令，请{remaining}秒后再试")
-            return
     user_id = event.user_id
     msg_text = str(event.message).strip()
     # 解析命令，支持@在指令前后的格式
@@ -476,10 +467,20 @@ async def handle_other_commands(bot, event: CQEvent):
     # 调试日志：输出初始解析结果
     sv.logger.debug(f"初始解析 - preset: {preset}, target_qq: {target_qq}, 原始消息: {msg_text}")
     
-    # 忽略双打指令
-    if preset == "双打":
+    # 忽略双打指令和无指令的情况
+    if preset == "双打" or not preset:
         return
     
+    # 频率限制检查（只在确认有有效指令时才检查）
+    group_id = event.group_id if event.group_id else None
+    if group_id:
+        now = datetime.now()
+        last_used = group_last_used.get(group_id)
+        if last_used and (now - last_used) < timedelta(seconds=FREQ_LIMIT_SECONDS):
+            remaining = (last_used + timedelta(seconds=FREQ_LIMIT_SECONDS) - now).seconds
+            await bot.send(event, f"⚠️ 每个群每分钟只能使用一次指令，请{remaining}秒后再试")
+            return
+
     # 情况1：用户之前发送过指令，现在单独发送图片
     if user_id in waiting_for_image and not preset:
         preset = waiting_for_image.pop(user_id)
@@ -500,114 +501,83 @@ async def handle_other_commands(bot, event: CQEvent):
     elif not preset:
         return
 
-    # 单图处理逻辑
+    # 获取图片源（优先使用消息中的图片，其次使用目标QQ头像）
+    image_url = get_image_from_event(event)
+    if not image_url and target_qq:
+        image_url = build_avatar_url(target_qq)
+    
+    if not image_url:
+        await bot.send(event, "未找到图片，请重新发送指令并附带图片或@目标用户")
+        return
+
     try:
-        # 1. 获取图片来源
-        image_url = get_image_from_event(event)
-        sv.logger.info(f"处理命令[{preset}]，初始图片URL: {image_url if image_url else '无'}")
+        # 下载图片并转换为base64
+        sv.logger.info(f"开始处理{preset}，图片来源: {'消息图片' if not target_qq else f'QQ头像({target_qq})'}")
+        image_b64 = await fetch_image_as_b64(image_url)
+        
+        # 选择提示词
+        prompt, preset_label = select_prompt(preset)
+        if preset_label == "绘画" and msg_text:
+            # 提取绘画指令后的自定义文本
+            custom_text = re.sub(rf"^{preset_label}@?\d*", "", msg_text).strip()
+            if custom_text:
+                prompt = custom_text
+                sv.logger.debug(f"使用自定义绘画提示词: {prompt}")
 
-        # 2. 处理目标QQ（多重提取保障）
-        if not target_qq:
-            target_qq = get_at_qq_from_event(event)
-            sv.logger.info(f"从消息中提取到@的QQ: {target_qq if target_qq else '无'}")
+        # 构建请求参数
+        model = CONFIG["default_model"]
+        payload = build_payload(model, prompt, image_b64, CONFIG["max_tokens"])
         
-        # 最终确认目标状态（增加调试日志）
-        sv.logger.debug(f"最终目标确认 - target_qq: {target_qq}, image_url存在: {bool(image_url)}")
-        
-        # 3. 检查图片/目标是否存在
-        if not image_url and not target_qq:
-            await bot.send(event, "请发送需要处理的图片（可直接附带图片的消息）或@目标用户")
-            return
-        
-        # 4. 使用头像作为图片源（当无直接图片时）
-        if not image_url and target_qq:
-            image_url = build_avatar_url(target_qq)
-            sv.logger.info(f"使用目标QQ[{target_qq}]的头像作为图片源")
-        if not image_url:
-            image_url = build_avatar_url(str(event.user_id))
-            sv.logger.info(f"使用发送者QQ[{event.user_id}]的头像作为图片源")
-        
-        # 验证图片URL有效性
-        if not image_url.startswith(('http://', 'https://', 'base64://', 'file://')):
-            raise RuntimeError(f"无效的图片URL格式: {image_url}")
-
-        # 5. 处理图片
-        await bot.send(event, "⏳ 正在处理图片，请稍候...")
-        try:
-            image_b64 = await fetch_image_as_b64(image_url)
-            if len(image_b64) < 100:
-                raise RuntimeError("图片转换失败，得到无效的base64数据")
-        except Exception as e:
-            await bot.send(event, f"❌ 图片处理失败：{str(e)}\n请重新发送图片或检查图片有效性")
-            return
-        
-        # 6. 调用API生成图片
-        prompt, prompt_label = select_prompt(preset)
-        # 处理绘画指令的自定义提示词
-        if preset == "绘画":
-            # 从消息中提取用户自定义提示词（去除指令部分）
-            cmd_pattern = re.compile(r"^(?:@\d+ )?绘画(?:@\d+)?", re.IGNORECASE)
-            user_prompt = cmd_pattern.sub("", msg_text).strip()
-            if not user_prompt:
-                await bot.send(event, "❌ 请在【绘画】指令后添加具体描述提示词")
-                return
-            prompt = user_prompt  # 使用用户输入的提示词
-            await bot.send(event, "🎨 正在根据您的提示词生成图像...")
-        else:
-            await bot.send(event, f"🎨 正在生成{prompt_label}效果...")
-        payload = build_payload(
-            model=CONFIG["model"],
-            prompt=prompt,
-            image_b64=image_b64,
-            max_tokens=CONFIG["max_tokens"]
-        )
+        # 调用API
+        api_key = get_next_api_key()
         headers = {
-            "Authorization": f"Bearer {get_next_api_key()}",
+            "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
         
         proxy = CONFIG["proxy_url"] if CONFIG["use_proxy"] else None
-        async with httpx.AsyncClient(proxy=proxy, timeout=60.0) as client:
+        async with httpx.AsyncClient(timeout=120.0, proxy=proxy) as client:
+            await bot.send(event, f"🎨 正在生成{preset_label}图片，请稍候（约30秒）...")
             resp = await client.post(API_URL, json=payload, headers=headers)
             resp.raise_for_status()
             data = resp.json()
         
-        # 7. 提取并发送结果
+        # 提取图片URL
         result_url = extract_image_url_from_response(data)
         if not result_url:
-            await bot.send(event, "❌ 未能从API响应中提取图片")
+            await bot.send(event, "❌ 未能从API响应中提取图片URL")
+            sv.logger.error(f"API响应缺少图片URL: {data}")
             return
         
-        await bot.send(event, Message(f"✨ {prompt_label}生成成功！\n{MessageSegment.image(result_url)}"))
-    
-        # 更新频率限制时间
+        # 保存生成的图片
+        generated_path = os.path.join(GENERATED_DIR, f"{datetime.now().strftime('%Y%m%d%H%M%S')}_{user_id}.png")
+        try:
+            async with httpx.AsyncClient(timeout=30.0, proxy=proxy) as client:
+                img_resp = await client.get(result_url)
+                img_resp.raise_for_status()
+                with open(generated_path, "wb") as f:
+                    f.write(img_resp.content)
+            sv.logger.info(f"图片已保存至: {generated_path}")
+        except Exception as e:
+            sv.logger.warning(f"保存图片失败: {str(e)}")
+        
+        # 更新最后使用时间
         if group_id:
             group_last_used[group_id] = datetime.now()
-    
-    # 异常处理
-    except httpx.HTTPError as e:
-        status_code = e.response.status_code if e.response else None
-        error_msg = f"❌ HTTP请求错误: {str(e)}"
-        await bot.send(event, error_msg)
         
-        if status_code in (401, 429):
-            cfg = load_keys_config()
-            keys = cfg.get("keys", [])
-            if len(keys) > 0:
-                removed_key = keys.pop(0)
-                if cfg["current"] >= len(keys) and keys:
-                    cfg["current"] = 0
-                save_keys_config(cfg)
-                
-                error_type = "密钥无效或未授权" if status_code == 401 else "请求过于频繁"
-                await bot.send(event, f"🔑 检测到{error_type}（{status_code}错误），已自动移除第一个密钥：{removed_key[:12]}***")
-        
-        sv.logger.error(f"处理HTTP错误: {str(e)}", exc_info=True)
-        
+        # 发送结果
+        await bot.send(event, Message([
+            MessageSegment.text(f"✅ {preset_label}生成完成：\n"),
+            MessageSegment.image(result_url)
+        ]))
+
     except Exception as e:
-        error_msg = f"❌ 处理失败：{str(e)}"
+        error_msg = f"❌ 处理失败: {str(e)}"
         await bot.send(event, error_msg)
-        sv.logger.error(f"处理失败: {str(e)}", exc_info=True)
+        sv.logger.error(error_msg, exc_info=True)
+        # 失败时恢复等待状态（如果是等待图片的情况）
+        if user_id not in waiting_for_image and (preset and not get_image_from_event(event)):
+            waiting_for_image[user_id] = preset
     # 在处理成功后更新最后调用时间
     if group_id:
         group_last_used[group_id] = datetime.now()
