@@ -357,16 +357,6 @@ waiting_for_double_image = {}  # 双打指令: {user_id: first_image_url}
 @sv.on_message()
 async def handle_double_mode(bot, event: CQEvent):
     """单独处理双打模式的消息，支持@目标用户获取头像"""
-    # 新增：频率限制检查
-    group_id = event.group_id if event.group_id else None
-    if group_id:
-        now = datetime.now()
-        last_used = group_last_used.get(group_id)
-        if last_used and (now - last_used) < timedelta(seconds=FREQ_LIMIT_SECONDS):
-            remaining = (last_used + timedelta(seconds=FREQ_LIMIT_SECONDS) - now).seconds
-            await bot.send(event, f"⚠️ 每个群每分钟只能使用一次指令，请{remaining}秒后再试")
-            return
-    
     user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, _ = parse_command(msg_text)
