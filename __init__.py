@@ -12,7 +12,10 @@ from hoshino.typing import CQEvent, Message, MessageSegment
 
 # 加载配置
 from .config import CONFIG
-
+# 新增：记录每个群的最后调用时间 {group_id: last_used_time}
+group_last_used = {}
+# 限制时间（秒）
+FREQ_LIMIT_SECONDS = 60  # 1分钟
 # 全局常量
 API_URL = "https://openrouter.ai/api/v1/chat/completions"
 QLOGO_AVATAR = "https://q1.qlogo.cn/g?b=qq&nk={qq}&s=640"
@@ -50,6 +53,7 @@ COMMAND_PATTERNS = [
     re.compile(r"^(?:@(\d+) )?次元壁(?:@(\d+))?"),
     re.compile(r"^(?:@(\d+) )?绘画(?:@(\d+))?"),
 ]
+
 # 初始化生成目录
 os.makedirs(GENERATED_DIR, exist_ok=True)
 
@@ -67,9 +71,10 @@ sv = Service(
 3. 双打模式：发送"双打"并附带第一张图片，收到提示后发送第二张图片
 """.strip()
 )
+
 # 自动添加的密钥配置（请替换为实际需要自动添加的密钥）
 AUTO_ADD_KEYS = [
-    "sk-or-v1-XXXXXXX",
+    "sk-or-v1-XXXXX", 
 ]
 
 # 全局变量用于标记定时任务是否已启动
@@ -352,6 +357,16 @@ waiting_for_double_image = {}  # 双打指令: {user_id: first_image_url}
 @sv.on_message()
 async def handle_double_mode(bot, event: CQEvent):
     """单独处理双打模式的消息，支持@目标用户获取头像"""
+    # 新增：频率限制检查
+    group_id = event.group_id if event.group_id else None
+    if group_id:
+        now = datetime.now()
+        last_used = group_last_used.get(group_id)
+        if last_used and (now - last_used) < timedelta(seconds=FREQ_LIMIT_SECONDS):
+            remaining = (last_used + timedelta(seconds=FREQ_LIMIT_SECONDS) - now).seconds
+            await bot.send(event, f"⚠️ 每个群每分钟只能使用一次指令，请{remaining}秒后再试")
+            return
+    
     user_id = event.user_id
     msg_text = str(event.message).strip()
     preset, _ = parse_command(msg_text)
@@ -419,6 +434,10 @@ async def handle_double_mode(bot, event: CQEvent):
             else:
                 await bot.send(event, "❌ 未能从API响应中提取图片")
                 
+            # 更新频率限制时间
+                if group_id:
+                    group_last_used[group_id] = datetime.now()    
+                
         except Exception as e:
             await bot.send(event, f"❌ 双打模式处理失败：{str(e)}")
             # 出错时恢复状态，允许重新发送
@@ -450,6 +469,15 @@ async def handle_double_mode(bot, event: CQEvent):
 @sv.on_message()
 async def handle_other_commands(bot, event: CQEvent):
     """处理除双打之外的其他指令，支持@目标头像触发"""
+    # 新增：频率限制检查
+    group_id = event.group_id if event.group_id else None
+    if group_id:
+        now = datetime.now()
+        last_used = group_last_used.get(group_id)
+        if last_used and (now - last_used) < timedelta(seconds=FREQ_LIMIT_SECONDS):
+            remaining = (last_used + timedelta(seconds=FREQ_LIMIT_SECONDS) - now).seconds
+            await bot.send(event, f"⚠️ 每个群每分钟只能使用一次指令，请{remaining}秒后再试")
+            return
     user_id = event.user_id
     msg_text = str(event.message).strip()
     # 解析命令，支持@在指令前后的格式
@@ -562,6 +590,10 @@ async def handle_other_commands(bot, event: CQEvent):
         
         await bot.send(event, Message(f"✨ {prompt_label}生成成功！\n{MessageSegment.image(result_url)}"))
     
+        # 更新频率限制时间
+        if group_id:
+            group_last_used[group_id] = datetime.now()
+    
     # 异常处理
     except httpx.HTTPError as e:
         status_code = e.response.status_code if e.response else None
@@ -586,7 +618,9 @@ async def handle_other_commands(bot, event: CQEvent):
         error_msg = f"❌ 处理失败：{str(e)}"
         await bot.send(event, error_msg)
         sv.logger.error(f"处理失败: {str(e)}", exc_info=True)
-
+    # 在处理成功后更新最后调用时间
+    if group_id:
+        group_last_used[group_id] = datetime.now()
 
 # 同时确保get_at_qq_from_event函数能正确提取@的用户（如果之前实现有问题）
 def get_at_qq_from_event(event: CQEvent) -> Optional[str]:
