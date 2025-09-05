@@ -1,5 +1,7 @@
 # shouban
 
+免费模型被玩没了，付费模型可以试试
+
 https://openrouter.ai/settings/keys
 
 手动创建apikey
