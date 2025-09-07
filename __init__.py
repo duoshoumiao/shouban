@@ -525,7 +525,7 @@ async def handle_other_commands(bot, event: CQEvent):
                 sv.logger.debug(f"使用自定义绘画提示词: {prompt}")
 
         # 构建请求参数
-        model = CONFIG["default_model"]
+        model = CONFIG["model"]
         payload = build_payload(model, prompt, image_b64, CONFIG["max_tokens"])
         
         # 调用API
